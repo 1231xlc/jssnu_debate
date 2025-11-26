@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>江苏第二师范学院灼知杯辩论赛计时系统</title>
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 自定义配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#FF7D00',
+            pro: '#165DFF',      // 正方颜色
+            con: '#FF4D4F',      // 反方颜色
+            neutral: {
+              100: '#F5F7FA',
+              200: '#E4E7ED',
+              300: '#C0C6CF',
+              800: '#303133',
+              900: '#1E1E1E'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .timer-glow {
+        box-shadow: 0 0 20px rgba(22, 93, 255, 0.3);
+      }
+      .alert-glow {
+        box-shadow: 0 0 25px rgba(255, 77, 79, 0.5);
+      }
+      .pro-glow {
+        box-shadow: 0 0 15px rgba(22, 93, 255, 0.4);
+      }
+      .con-glow {
+        box-shadow: 0 0 15px rgba(255, 77, 79, 0.4);
+      }
+      /* 5秒倒计时高亮样式 */
+      .final-countdown {
+        animation: pulse 1s infinite;
+      }
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+    }
+  </style>
+</head>
+<body class="bg-neutral-100 font-sans text-neutral-800 min-h-screen flex flex-col">
+  <!-- 头部 -->
+  <header class="bg-neutral-900 text-white py-4 shadow-md">
+    <div class="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
+      <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold flex items-center gap-2">
+        <i class="fa fa-clock-o" aria-hidden="true"></i>
+        <span>灼知杯辩论赛计时系统</span>
+      </h1>
+      <div class="mt-2 md:mt-0 text-sm opacity-90 flex items-center gap-4">
+        <span>当前环节：<span id="current-stage-index" class="font-bold text-primary">1</span>/14</span>
+        <span>公平公正 · 精准计时</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <!-- 配置区域 -->
+    <section class="bg-white rounded-xl shadow-lg p-6 mb-8 transition-all duration-300 hover:shadow-xl">
+      <h2 class="text-xl font-bold mb-4 text-neutral-800 flex items-center gap-2">
+        <i class="fa fa-cog text-primary" aria-hidden="true"></i>
+        比赛配置
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 队伍信息 -->
+        <div class="space-y-4">
+          <div>
+            <label for="pro-team" class="block text-sm font-medium text-neutral-700 mb-1">正方队伍名称</label>
+            <input type="text" id="pro-team" class="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-pro/50 focus:border-pro outline-none transition-all" placeholder="输入正方队伍名称" value="正方代表队">
+          </div>
+          <div>
+            <label for="con-team" class="block text-sm font-medium text-neutral-700 mb-1">反方队伍名称</label>
+            <input type="text" id="con-team" class="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-con/50 focus:border-con outline-none transition-all" placeholder="输入反方队伍名称" value="反方代表队">
+          </div>
+        </div>
+        
+        <!-- 辩题信息 -->
+        <div class="space-y-4 md:col-span-2">
+          <div>
+            <label for="topic" class="block text-sm font-medium text-neutral-700 mb-1">辩题</label>
+            <input type="text" id="topic" class="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all" placeholder="输入本场比赛辩题" value="人工智能的发展对人类社会利大于弊">
+          </div>
+          <div class="flex items-center gap-2 text-sm text-neutral-600">
+            <span class="font-medium">持方说明：</span>
+            <span>正方支持辩题观点，反方反对辩题观点</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 环节进度与控制 -->
+    <section class="bg-white rounded-xl shadow-lg p-6 mb-8 transition-all duration-300">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- 环节选择 -->
+        <div class="w-full md:w-3/4">
+          <label class="block text-sm font-medium text-neutral-700 mb-2">比赛环节</label>
+          <select id="stage-select" class="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all bg-white text-base">
+            <option value="0">1. 正方一辩立论（3分钟）</option>
+            <option value="1">2. 反方四辩质询正方一辩（质询方1分30秒）</option>
+            <option value="2">3. 反方一辩立论（3分钟）</option>
+            <option value="3">4. 正方四辩质询反方一辩（质询方1分30秒）</option>
+            <option value="4">5. 正方二辩申论（2分钟）</option>
+            <option value="5">6. 反方二辩申论（2分钟）</option>
+            <option value="6">7. 正反二辩对辩（各2分钟，正方先）</option>
+            <option value="7">8. 正方三辩盘问（盘问方1分30秒）</option>
+            <option value="8">9. 反方三辩盘问（盘问方1分30秒）</option>
+            <option value="9">10. 正方三辩盘问小结（2分钟）</option>
+            <option value="10">11. 反方三辩盘问小结（2分钟）</option>
+            <option value="11">12. 自由辩论（各3分钟，正方先）</option>
+            <option value="12">13. 反方四辩总结陈词（3分30秒）</option>
+            <option value="13">14. 正方四辩总结陈词（3分30秒）</option>
+          </select>
+        </div>
+        
+        <!-- 环节切换按钮 -->
+        <div class="flex gap-3 w-full md:w-1/4">
+          <button id="prev-stage" class="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-1 shadow-sm">
+            <i class="fa fa-step-backward" aria-hidden="true"></i>
+            上一环节
+          </button>
+          <button id="next-stage" class="flex-1 bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-1 shadow-md">
+            下一环节
+            <i class="fa fa-step-forward" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 规则提示 -->
+      <div id="rule-tip" class="mt-4 p-3 bg-neutral-100 rounded-lg border-l-4 border-primary text-sm text-neutral-700">
+        规则提示：正方一辩进行立论发言，时间3分钟，发言结束即计时终止
+      </div>
+    </section>
+
+    <!-- 计时显示区域 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- 正方信息与计时器（单计时模式时隐藏，双计时模式显示） -->
+      <div id="pro-timer-panel" class="lg:col-span-5 bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl flex flex-col items-center justify-center text-center hidden">
+        <div class="inline-block px-4 py-1 rounded-full bg-pro/10 text-pro text-sm font-medium mb-3">
+          正方 · <span id="pro-timer-label">发言方</span>
+        </div>
+        <h3 id="pro-team-display" class="text-[clamp(1.2rem,2vw,1.8rem)] font-bold mb-2 text-neutral-800 text-shadow">正方代表队</h3>
+        <div class="text-[clamp(1.8rem,6vw,3.5rem)] font-bold text-pro mb-4 pro-glow rounded-lg px-6 py-3">
+          <span id="pro-timer">02:00</span>
+        </div>
+        <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden mt-4">
+          <div id="pro-timer-bar" class="h-full bg-pro transition-all duration-100 w-full"></div>
+        </div>
+      </div>
+
+      <!-- 中央计时区（单计时模式显示，双计时模式隐藏） -->
+      <div id="single-timer-panel" class="lg:col-span-12 bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl flex flex-col items-center justify-center timer-glow">
+        <div id="single-timer-label" class="inline-block px-4 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium mb-3">
+          正方一辩立论
+        </div>
+        <div class="text-[clamp(2.5rem,10vw,5rem)] font-bold text-neutral-900 mb-6">
+          <span id="single-timer">03:00</span>
+        </div>
+        <div class="w-full max-w-md h-3 bg-neutral-200 rounded-full overflow-hidden mb-6">
+          <div id="single-timer-bar" class="h-full bg-primary transition-all duration-100 w-full"></div>
+        </div>
+        <div class="flex gap-4">
+          <button id="start-timer" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-8 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+            <i class="fa fa-play" aria-hidden="true"></i>
+            开始计时
+          </button>
+          <button id="pause-timer" class="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-medium py-2 px-8 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow hidden">
+            <i class="fa fa-pause" aria-hidden="true"></i>
+            暂停
+          </button>
+          <button id="resume-timer" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-8 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hidden">
+            <i class="fa fa-play" aria-hidden="true"></i>
+            继续
+          </button>
+          <button id="reset-timer" class="bg-neutral-800 hover:bg-neutral-900 text-white font-medium py-2 px-8 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+            <i class="fa fa-refresh" aria-hidden="true"></i>
+            重置
+          </button>
+        </div>
+      </div>
+
+      <!-- 反方信息与计时器（单计时模式时隐藏，双计时模式显示） -->
+      <div id="con-timer-panel" class="lg:col-span-5 bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl flex flex-col items-center justify-center text-center hidden">
+        <div class="inline-block px-4 py-1 rounded-full bg-con/10 text-con text-sm font-medium mb-3">
+          反方 · <span id="con-timer-label">发言方</span>
+        </div>
+        <h3 id="con-team-display" class="text-[clamp(1.2rem,2vw,1.8rem)] font-bold mb-2 text-neutral-800 text-shadow">反方代表队</h3>
+        <div class="text-[clamp(1.8rem,6vw,3.5rem)] font-bold text-con mb-4 con-glow rounded-lg px-6 py-3">
+          <span id="con-timer">02:00</span>
+        </div>
+        <div class="w-full h-2 bg-neutral-200 rounded-full overflow-hidden mt-4">
+          <div id="con-timer-bar" class="h-full bg-con transition-all duration-100 w-full"></div>
+        </div>
+      </div>
+
+      <!-- 双计时模式控制区（仅双计时模式显示） -->
+      <div id="dual-timer-controls" class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl flex flex-col items-center justify-center gap-4 hidden">
+        <div class="text-center mb-2">
+          <h3 class="font-bold text-neutral-800">发言控制</h3>
+          <p class="text-sm text-neutral-600" id="dual-mode-tip">交替发言，正方先行</p>
+        </div>
+        <button id="dual-start-timer" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+          <i class="fa fa-play" aria-hidden="true"></i>
+          开始计时
+        </button>
+        <button id="dual-pause-timer" class="w-full bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow hidden">
+          <i class="fa fa-pause" aria-hidden="true"></i>
+          暂停
+        </button>
+        <button id="dual-resume-timer" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hidden">
+          <i class="fa fa-play" aria-hidden="true"></i>
+          继续
+        </button>
+        <!-- 合并后的切换发言方按钮 -->
+        <button id="toggle-speaker" class="w-full bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hidden">
+          <i class="fa fa-exchange" aria-hidden="true"></i>
+          <span id="toggle-speaker-text">切换至反方发言</span>
+        </button>
+        <button id="dual-reset-timer" class="w-full bg-neutral-800 hover:bg-neutral-900 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+          <i class="fa fa-refresh" aria-hidden="true"></i>
+          重置
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-neutral-800 text-white py-6 mt-8">
+    <div class="container mx-auto px-4 text-center text-sm opacity-80">
+      <p>© 2025 辩论赛专业计时系统 | 定制赛制版</p>
+      <p class="mt-2">支持完整赛制计时 | 自动适配单/双计时模式</p>
+    </div>
+  </footer>
+
+  <!-- 音频元素（用于计时提醒） -->
+  <audio id="alert-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio> <!-- 30秒提醒音 -->
+  <audio id="final-alert-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-fast-small-sweep-transition-166.mp3" preload="auto"> <!-- 5秒最终提醒音 -->
+  <audio id="end-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3" preload="auto"> </audio>
+
+  <script>
+    // 赛制配置：每个环节的详细信息（时间单位改为毫秒，保留两位小数）
+    const debateStages = [
+      // 0-3：开篇立论环节
+      {
+        id: 0,
+        name: "正方一辩立论",
+        desc: "1. 正方一辩立论",
+        timerType: "single", // 单一计时
+        target: "pro",       // 计时对象：正方
+        duration: 180000.00, // 3分钟（180秒 × 1000 = 180000毫秒）
+        rule: "正方一辩进行立论发言，时间3分钟，发言结束即计时终止"
+      },
+      {
+        id: 1,
+        name: "反方四辩质询正方一辩",
+        desc: "2. 反方四辩质询正方一辩",
+        timerType: "single", // 单一计时（仅计质询方）
+        target: "con",       // 计时对象：反方（质询方）
+        duration: 90000.00,  // 1分30秒（90秒 × 1000 = 90000毫秒）
+        rule: "仅质询方（反方四辩）计时，回答方（正方一辩）发言不计时间，质询方可以打断被质询方发言"
+      },
+      {
+        id: 2,
+        name: "反方一辩立论",
+        desc: "3. 反方一辩立论",
+        timerType: "single",
+        target: "con",
+        duration: 180000.00,
+        rule: "反方一辩进行立论发言，时间3分钟，发言结束即计时终止"
+      },
+      {
+        id: 3,
+        name: "正方四辩质询反方一辩",
+        desc: "4. 正方四辩质询反方一辩",
+        timerType: "single",
+        target: "pro",
+        duration: 90000.00,
+        rule: "仅质询方（正方四辩）计时，回答方（反方一辩）发言不计时间，质询方可以打断被质询方发言"
+      },
+      // 4-6：申论与对辩
+      {
+        id: 4,
+        name: "正方二辩申论",
+        desc: "5. 正方二辩申论",
+        timerType: "single",
+        target: "pro",
+        duration: 120000.00, // 2分钟（120秒 × 1000）
+        rule: "正方二辩进行申论发言，时间2分钟，发言结束即计时终止"
+      },
+      {
+        id: 5,
+        name: "反方二辩申论",
+        desc: "6. 反方二辩申论",
+        timerType: "single",
+        target: "con",
+        duration: 120000.00,
+        rule: "反方二辩进行申论发言，时间2分钟，发言结束即计时终止"
+      },
+      {
+        id: 6,
+        name: "正反二辩对辩",
+        desc: "7. 正反二辩对辩",
+        timerType: "dual",   // 双方独立计时
+        target: "both",
+        duration: { pro: 120000.00, con: 120000.00 }, // 各2分钟
+        rule: "双方交替发言，各2分钟，正方先行。一方发言时间完毕后另一方可继续发言，直到剩余时间用完为止",
+        tip: "交替发言，正方先行"
+      },
+      // 7-10：盘问环节
+      {
+        id: 7,
+        name: "正方三辩盘问",
+        desc: "8. 正方三辩盘问",
+        timerType: "single",
+        target: "pro",
+        duration: 90000.00,
+        rule: "仅盘问方（正方三辩）计时，被盘问方指派除三辩外任一辩手作答，答辩方发言不计时间，只能作答不能反问"
+      },
+      {
+        id: 8,
+        name: "反方三辩盘问",
+        desc: "9. 反方三辩盘问",
+        timerType: "single",
+        target: "con",
+        duration: 90000.00,
+        rule: "仅盘问方（反方三辩）计时，被盘问方指派除三辩外任一辩手作答，答辩方发言不计时间，只能作答不能反问"
+      },
+      {
+        id: 9,
+        name: "正方三辩盘问小结",
+        desc: "10. 正方三辩盘问小结",
+        timerType: "single",
+        target: "pro",
+        duration: 120000.00,
+        rule: "正方三辩进行盘问小结，时间2分钟，发言结束即计时终止"
+      },
+      {
+        id: 10,
+        name: "反方三辩盘问小结",
+        desc: "11. 反方三辩盘问小结",
+        timerType: "single",
+        target: "con",
+        duration: 120000.00,
+        rule: "反方三辩进行盘问小结，时间2分钟，发言结束即计时终止"
+      },
+      // 11：自由辩论
+      {
+        id: 11,
+        name: "自由辩论",
+        desc: "12. 自由辩论",
+        timerType: "dual",
+        target: "both",
+        duration: { pro: 180000.00, con: 180000.00 }, // 各3分钟
+        rule: "双方各3分钟，正方先发言。发言辩手落座为发言结束，另一方立即开始计时。一方时间用完，另一方可继续发言或放弃",
+        tip: "间隙累计计时，正方先行"
+      },
+      // 12-13：总结陈词
+      {
+        id: 12,
+        name: "反方四辩总结陈词",
+        desc: "13. 反方四辩总结陈词",
+        timerType: "single",
+        target: "con",
+        duration: 210000.00, // 3分30秒（210秒 × 1000）
+        rule: "反方四辩进行总结陈词，时间3分30秒，发言结束即计时终止"
+      },
+      {
+        id: 13,
+        name: "正方四辩总结陈词",
+        desc: "14. 正方四辩总结陈词",
+        timerType: "single",
+        target: "pro",
+        duration: 210000.00,
+        rule: "正方四辩进行总结陈词，时间3分30秒，发言结束即计时终止"
+      }
+    ];
+
+    // 全局变量（时间单位改为毫秒，保留两位小数精度）
+    let currentStageIndex = 0; // 当前环节索引
+    let singleTimerInterval = null;
+    let dualTimerInterval = null;
+    let isSingleTimerRunning = false;
+    let isDualTimerRunning = false;
+    let singleRemainingTime = 0.00; // 单计时剩余时间（毫秒，保留两位小数）
+    let dualRemainingTime = { pro: 0.00, con: 0.00 }; // 双计时剩余时间（毫秒）
+    let currentSpeaker = "pro"; // 双计时模式当前发言方
+    let originalSingleTime = 0.00; // 原始单计时时间（毫秒）
+    let originalDualTime = { pro: 0.00, con: 0.00 }; // 原始双计时时间（毫秒）
+
+    // DOM元素
+    const elements = {
+      // 配置区域
+      proTeamInput: document.getElementById('pro-team'),
+      conTeamInput: document.getElementById('con-team'),
+      topicInput: document.getElementById('topic'),
+      stageSelect: document.getElementById('stage-select'),
+      prevStageBtn: document.getElementById('prev-stage'),
+      nextStageBtn: document.getElementById('next-stage'),
+      ruleTip: document.getElementById('rule-tip'),
+      currentStageIndex: document.getElementById('current-stage-index'),
+      
+      // 队伍显示
+      proTeamDisplay: document.getElementById('pro-team-display'),
+      conTeamDisplay: document.getElementById('con-team-display'),
+      
+      // 单计时模式元素
+      singleTimerPanel: document.getElementById('single-timer-panel'),
+      singleTimerLabel: document.getElementById('single-timer-label'),
+      singleTimer: document.getElementById('single-timer'),
+      singleTimerBar: document.getElementById('single-timer-bar'),
+      startTimerBtn: document.getElementById('start-timer'),
+      pauseTimerBtn: document.getElementById('pause-timer'),
+      resumeTimerBtn: document.getElementById('resume-timer'),
+      resetTimerBtn: document.getElementById('reset-timer'),
+      
+      // 双计时模式元素
+      proTimerPanel: document.getElementById('pro-timer-panel'),
+      conTimerPanel: document.getElementById('con-timer-panel'),
+      dualTimerControls: document.getElementById('dual-timer-controls'),
+      proTimer: document.getElementById('pro-timer'),
+      conTimer: document.getElementById('con-timer'),
+      proTimerBar: document.getElementById('pro-timer-bar'),
+      conTimerBar: document.getElementById('con-timer-bar'),
+      proTimerLabel: document.getElementById('pro-timer-label'),
+      conTimerLabel: document.getElementById('con-timer-label'),
+      toggleSpeakerBtn: document.getElementById('toggle-speaker'), // 合并后的切换按钮
+      toggleSpeakerText: document.getElementById('toggle-speaker-text'), // 切换按钮文本
+      dualStartTimerBtn: document.getElementById('dual-start-timer'),
+      dualPauseTimerBtn: document.getElementById('dual-pause-timer'),
+      dualResumeTimerBtn: document.getElementById('dual-resume-timer'),
+      dualResetTimerBtn: document.getElementById('dual-reset-timer'),
+      dualModeTip: document.getElementById('dual-mode-tip'),
+      
+      // 音频
+      alertSound: document.getElementById('alert-sound'), // 30秒提醒
+      finalAlertSound: document.getElementById('final-alert-sound'), // 5秒提醒
+      endSound: document.getElementById('end-sound')
+    };
+
+    // 初始化
+    function init() {
+      // 初始化队伍信息
+      updateTeamInfo();
+      // 初始化当前环节
+      loadStage(currentStageIndex);
+      // 事件监听
+      attachEventListeners();
+    }
+
+    // 绑定事件监听
+    function attachEventListeners() {
+      // 配置区域事件
+      elements.proTeamInput.addEventListener('input', updateTeamInfo);
+      elements.conTeamInput.addEventListener('input', updateTeamInfo);
+      elements.topicInput.addEventListener('input', updateTeamInfo);
+      elements.stageSelect.addEventListener('change', (e) => {
+        currentStageIndex = parseInt(e.target.value);
+        loadStage(currentStageIndex);
+      });
+      elements.prevStageBtn.addEventListener('click', goToPrevStage);
+      elements.nextStageBtn.addEventListener('click', goToNextStage);
+      
+      // 单计时模式事件
+      elements.startTimerBtn.addEventListener('click', startSingleTimer);
+      elements.pauseTimerBtn.addEventListener('click', pauseSingleTimer);
+      elements.resumeTimerBtn.addEventListener('click', resumeSingleTimer);
+      elements.resetTimerBtn.addEventListener('click', resetSingleTimer);
+      
+      // 双计时模式事件
+      elements.dualStartTimerBtn.addEventListener('click', startDualTimer);
+      elements.dualPauseTimerBtn.addEventListener('click', pauseDualTimer);
+      elements.dualResumeTimerBtn.addEventListener('click', resumeDualTimer);
+      elements.dualResetTimerBtn.addEventListener('click', resetDualTimer);
+      elements.toggleSpeakerBtn.addEventListener('click', toggleSpeaker); // 绑定切换发言方事件
+    }
+
+    // 更新队伍信息显示
+    function updateTeamInfo() {
+      elements.proTeamDisplay.textContent = elements.proTeamInput.value || '正方代表队';
+      elements.conTeamDisplay.textContent = elements.conTeamInput.value || '反方代表队';
+    }
+
+    // 加载指定环节
+    function loadStage(index) {
+      if (index < 0 || index >= debateStages.length) return;
+      
+      currentStageIndex = index;
+      const stage = debateStages[currentStageIndex];
+      
+      // 更新UI显示
+      elements.currentStageIndex.textContent = currentStageIndex + 1;
+      elements.stageSelect.value = currentStageIndex;
+      elements.ruleTip.textContent = `规则提示：${stage.rule}`;
+      
+      // 停止当前所有计时器
+      stopAllTimers();
+      
+      // 根据计时类型切换显示模式
+      if (stage.timerType === 'single') {
+        showSingleTimerMode(stage);
+      } else if (stage.timerType === 'dual') {
+        showDualTimerMode(stage);
+      }
+    }
+
+    // 显示单计时模式（时间单位改为毫秒）
+    function showSingleTimerMode(stage) {
+      // 切换面板显示
+      elements.singleTimerPanel.classList.remove('hidden');
+      elements.proTimerPanel.classList.add('hidden');
+      elements.conTimerPanel.classList.add('hidden');
+      elements.dualTimerControls.classList.add('hidden');
+      
+      // 初始化计时数据（毫秒单位，保留两位小数）
+      singleRemainingTime = parseFloat(stage.duration.toFixed(2));
+      originalSingleTime = parseFloat(stage.duration.toFixed(2));
+      
+      // 更新UI
+      elements.singleTimerLabel.textContent = stage.name;
+      elements.singleTimerLabel.className = `inline-block px-4 py-1 rounded-full ${stage.target === 'pro' ? 'bg-pro/10 text-pro' : 'bg-con/10 text-con'} text-sm font-medium mb-3`;
+      elements.singleTimerBar.className = `h-full ${stage.target === 'pro' ? 'bg-pro' : 'bg-con'} transition-all duration-100`;
+      elements.singleTimerBar.style.width = '100%';
+      
+      // 格式化并显示时间
+      updateSingleTimerDisplay();
+      
+      // 重置按钮状态
+      elements.startTimerBtn.classList.remove('hidden');
+      elements.pauseTimerBtn.classList.add('hidden');
+      elements.resumeTimerBtn.classList.add('hidden');
+    }
+
+    // 显示双计时模式（时间单位改为毫秒）
+    function showDualTimerMode(stage) {
+      // 切换面板显示
+      elements.singleTimerPanel.classList.add('hidden');
+      elements.proTimerPanel.classList.remove('hidden');
+      elements.conTimerPanel.classList.remove('hidden');
+      elements.dualTimerControls.classList.remove('hidden');
+      
+      // 初始化计时数据（毫秒单位，保留两位小数）
+      dualRemainingTime.pro = parseFloat(stage.duration.pro.toFixed(2));
+      dualRemainingTime.con = parseFloat(stage.duration.con.toFixed(2));
+      originalDualTime.pro = parseFloat(stage.duration.pro.toFixed(2));
+      originalDualTime.con = parseFloat(stage.duration.con.toFixed(2));
+      currentSpeaker = stage.desc.includes('正方先') ? 'pro' : 'pro'; // 所有双计时环节均正方先行
+      
+      // 更新UI
+      elements.dualModeTip.textContent = stage.tip || '';
+      elements.proTimerLabel.textContent = stage.desc.includes('对辩') ? '二辩发言' : '发言方';
+      elements.conTimerLabel.textContent = stage.desc.includes('对辩') ? '二辩发言' : '发言方';
+      
+      // 更新计时器显示和进度条
+      updateDualTimerDisplay();
+      updateDualProgressBars();
+      
+      // 更新切换按钮状态（初始隐藏，开始计时后显示）
+      elements.toggleSpeakerBtn.classList.add('hidden');
+      
+      // 重置按钮状态
+      elements.dualStartTimerBtn.classList.remove('hidden');
+      elements.dualPauseTimerBtn.classList.add('hidden');
+      elements.dualResumeTimerBtn.classList.add('hidden');
+    }
+
+    // 格式化时间显示（毫秒转分:秒，忽略小数部分，显示保持不变）
+    function formatTime(milliseconds) {
+      // 毫秒转秒，四舍五入取整（显示时忽略小数）
+      const seconds = Math.round(milliseconds / 1000);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // 更新单计时模式显示（时间判断逻辑改为毫秒）
+    function updateSingleTimerDisplay() {
+      elements.singleTimer.textContent = formatTime(singleRemainingTime);
+      // 进度计算：剩余毫秒 / 原始毫秒
+      const progress = (singleRemainingTime / originalSingleTime) * 100;
+      elements.singleTimerBar.style.width = `${progress.toFixed(2)}%`;
+      
+      // 时间提醒逻辑（转换为秒进行判断，保持原有逻辑不变）
+      const remainingSec = singleRemainingTime / 1000;
+      if (remainingSec <= 30 && remainingSec > 5) {
+        // 30-6秒：普通提醒状态
+        elements.singleTimer.classList.add('text-secondary');
+        elements.singleTimer.classList.remove('text-red-500', 'final-countdown');
+        elements.singleTimerPanel.classList.add('alert-glow');
+        
+        // 30秒提醒（精确到0.01秒触发）
+        if (Math.abs(remainingSec - 30) < 0.01) {
+          playAlertSound();
+        }
+      } else if (remainingSec <= 5 && remainingSec > 0) {
+        // 5秒及以内：最终提醒状态
+        elements.singleTimer.classList.add('text-red-500', 'final-countdown');
+        elements.singleTimer.classList.remove('text-secondary');
+        elements.singleTimerPanel.classList.add('alert-glow');
+        
+        // 5秒最终提醒（精确到0.01秒触发）
+        if (Math.abs(remainingSec - 5) < 0.01) {
+          playFinalAlertSound();
+        }
+      } else if (remainingSec <= 0) {
+        // 时间结束（强制设为0.00）
+        singleRemainingTime = 0.00;
+        elements.singleTimer.textContent = formatTime(singleRemainingTime);
+        elements.singleTimer.classList.add('text-red-500');
+        elements.singleTimer.classList.remove('final-countdown');
+        elements.singleTimerPanel.classList.add('alert-glow');
+        playEndSound(); // 时间结束提示
+        pauseSingleTimer(); // 自动暂停
+      } else {
+        // 正常计时状态
+        elements.singleTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+        elements.singleTimerPanel.classList.remove('alert-glow');
+      }
+    }
+
+    // 更新双计时模式显示（时间判断逻辑改为毫秒）
+    function updateDualTimerDisplay() {
+      // 正方计时器
+      elements.proTimer.textContent = formatTime(dualRemainingTime.pro);
+      const proRemainingSec = dualRemainingTime.pro / 1000;
+      if (proRemainingSec <= 30 && proRemainingSec > 5) {
+        elements.proTimer.classList.add('text-secondary');
+        elements.proTimer.classList.remove('text-red-500', 'final-countdown');
+        elements.proTimerPanel.classList.add('alert-glow');
+        
+        if (Math.abs(proRemainingSec - 30) < 0.01) playAlertSound();
+      } else if (proRemainingSec <= 5 && proRemainingSec > 0) {
+        elements.proTimer.classList.add('text-red-500', 'final-countdown');
+        elements.proTimer.classList.remove('text-secondary');
+        elements.proTimerPanel.classList.add('alert-glow');
+        
+        if (Math.abs(proRemainingSec - 5) < 0.01) playFinalAlertSound();
+      } else if (proRemainingSec <= 0) {
+        dualRemainingTime.pro = 0.00;
+        elements.proTimer.textContent = formatTime(dualRemainingTime.pro);
+        elements.proTimer.classList.add('text-red-500');
+        elements.proTimer.classList.remove('final-countdown');
+        elements.proTimerPanel.classList.add('alert-glow');
+      } else {
+        elements.proTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+        elements.proTimerPanel.classList.remove('alert-glow');
+      }
+      
+      // 反方计时器
+      elements.conTimer.textContent = formatTime(dualRemainingTime.con);
+      const conRemainingSec = dualRemainingTime.con / 1000;
+      if (conRemainingSec <= 30 && conRemainingSec > 5) {
+        elements.conTimer.classList.add('text-secondary');
+        elements.conTimer.classList.remove('text-red-500', 'final-countdown');
+        elements.conTimerPanel.classList.add('alert-glow');
+        
+        if (Math.abs(conRemainingSec - 30) < 0.01) playAlertSound();
+      } else if (conRemainingSec <= 5 && conRemainingSec > 0) {
+        elements.conTimer.classList.add('text-red-500', 'final-countdown');
+        elements.conTimer.classList.remove('text-secondary');
+        elements.conTimerPanel.classList.add('alert-glow');
+        
+        if (Math.abs(conRemainingSec - 5) < 0.01) playFinalAlertSound();
+      } else if (conRemainingSec <= 0) {
+        dualRemainingTime.con = 0.00;
+        elements.conTimer.textContent = formatTime(dualRemainingTime.con);
+        elements.conTimer.classList.add('text-red-500');
+        elements.conTimer.classList.remove('final-countdown');
+        elements.conTimerPanel.classList.add('alert-glow');
+      } else {
+        elements.conTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+        elements.conTimerPanel.classList.remove('alert-glow');
+      }
+      
+      // 检查是否双方时间都用完
+      if (dualRemainingTime.pro <= 0 && dualRemainingTime.con <= 0) {
+        playEndSound();
+        pauseDualTimer();
+      }
+    }
+
+    // 更新双计时模式进度条（改为毫秒计算）
+    function updateDualProgressBars() {
+      const proProgress = (dualRemainingTime.pro / originalDualTime.pro) * 100;
+      const conProgress = (dualRemainingTime.con / originalDualTime.con) * 100;
+      elements.proTimerBar.style.width = `${proProgress.toFixed(2)}%`;
+      elements.conTimerBar.style.width = `${conProgress.toFixed(2)}%`;
+    }
+
+    // 更新切换发言方按钮状态（合并后版本）
+    function updateToggleSpeakerButton() {
+      if (!isDualTimerRunning) {
+        elements.toggleSpeakerBtn.classList.add('hidden');
+        return;
+      }
+      
+      // 显示切换按钮
+      elements.toggleSpeakerBtn.classList.remove('hidden');
+      
+      // 根据当前发言方更新按钮文本和状态
+      if (currentSpeaker === 'pro') {
+        // 当前正方发言，显示切换到反方
+        elements.toggleSpeakerText.textContent = '切换至反方发言';
+        // 如果反方时间已用完，禁用按钮
+        elements.toggleSpeakerBtn.disabled = dualRemainingTime.con <= 0;
+        elements.toggleSpeakerBtn.style.opacity = dualRemainingTime.con <= 0 ? '0.6' : '1';
+      } else {
+        // 当前反方发言，显示切换到正方
+        elements.toggleSpeakerText.textContent = '切换至正方发言';
+        // 如果正方时间已用完，禁用按钮
+        elements.toggleSpeakerBtn.disabled = dualRemainingTime.pro <= 0;
+        elements.toggleSpeakerBtn.style.opacity = dualRemainingTime.pro <= 0 ? '0.6' : '1';
+      }
+      
+      // 更新计时器高亮状态
+      if (currentSpeaker === 'pro' && dualRemainingTime.pro > 0) {
+        elements.proTimerPanel.classList.add('pro-glow');
+        elements.conTimerPanel.classList.remove('con-glow');
+      } else if (currentSpeaker === 'con' && dualRemainingTime.con > 0) {
+        elements.conTimerPanel.classList.add('con-glow');
+        elements.proTimerPanel.classList.remove('pro-glow');
+      } else {
+        elements.proTimerPanel.classList.remove('pro-glow');
+        elements.conTimerPanel.classList.remove('con-glow');
+      }
+    }
+
+    // 切换发言方（合并后版本：点击一次切换一次）
+    function toggleSpeaker() {
+      if (!isDualTimerRunning) return;
+      
+      // 切换发言方
+      currentSpeaker = currentSpeaker === 'pro' ? 'con' : 'pro';
+      
+      // 更新按钮状态和计时器显示
+      updateToggleSpeakerButton();
+      updateDualTimerDisplay();
+    }
+
+    // 单计时模式：开始计时（10ms间隔，每次递减10ms=0.01秒）
+    function startSingleTimer() {
+      if (!isSingleTimerRunning) {
+        isSingleTimerRunning = true;
+        elements.startTimerBtn.classList.add('hidden');
+        elements.pauseTimerBtn.classList.remove('hidden');
+        elements.resumeTimerBtn.classList.add('hidden');
+        
+        // 10ms触发一次，提升计时精度
+        singleTimerInterval = setInterval(() => {
+          if (singleRemainingTime > 0) {
+            // 每次递减10ms（0.01秒），保留两位小数
+            singleRemainingTime = parseFloat((singleRemainingTime - 10).toFixed(2));
+            updateSingleTimerDisplay();
+          } else {
+            singleRemainingTime = 0.00;
+            clearInterval(singleTimerInterval);
+            isSingleTimerRunning = false;
+          }
+        }, 10);
+      }
+    }
+
+    // 单计时模式：暂停计时
+    function pauseSingleTimer() {
+      if (isSingleTimerRunning) {
+        clearInterval(singleTimerInterval);
+        isSingleTimerRunning = false;
+        elements.pauseTimerBtn.classList.add('hidden');
+        elements.resumeTimerBtn.classList.remove('hidden');
+      }
+    }
+
+    // 单计时模式：继续计时（10ms间隔）
+    function resumeSingleTimer() {
+      if (!isSingleTimerRunning && singleRemainingTime > 0) {
+        isSingleTimerRunning = true;
+        elements.resumeTimerBtn.classList.add('hidden');
+        elements.pauseTimerBtn.classList.remove('hidden');
+        
+        singleTimerInterval = setInterval(() => {
+          if (singleRemainingTime > 0) {
+            singleRemainingTime = parseFloat((singleRemainingTime - 10).toFixed(2));
+            updateSingleTimerDisplay();
+          } else {
+            singleRemainingTime = 0.00;
+            clearInterval(singleTimerInterval);
+            isSingleTimerRunning = false;
+          }
+        }, 10);
+      }
+    }
+
+    // 单计时模式：重置计时（恢复为毫秒单位）
+    function resetSingleTimer() {
+      clearInterval(singleTimerInterval);
+      isSingleTimerRunning = false;
+      
+      const stage = debateStages[currentStageIndex];
+      singleRemainingTime = parseFloat(stage.duration.toFixed(2));
+      
+      updateSingleTimerDisplay();
+      elements.startTimerBtn.classList.remove('hidden');
+      elements.pauseTimerBtn.classList.add('hidden');
+      elements.resumeTimerBtn.classList.add('hidden');
+      elements.singleTimerPanel.classList.remove('alert-glow');
+      elements.singleTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+    }
+
+    // 双计时模式：开始计时（10ms间隔，每次递减10ms）
+    function startDualTimer() {
+      if (!isDualTimerRunning) {
+        isDualTimerRunning = true;
+        elements.dualStartTimerBtn.classList.add('hidden');
+        elements.dualPauseTimerBtn.classList.remove('hidden');
+        elements.dualResumeTimerBtn.classList.add('hidden');
+        
+        // 显示并更新切换按钮
+        updateToggleSpeakerButton();
+        
+        dualTimerInterval = setInterval(() => {
+          // 只减少当前发言方的时间（10ms=0.01秒）
+          if (currentSpeaker === 'pro' && dualRemainingTime.pro > 0) {
+            dualRemainingTime.pro = parseFloat((dualRemainingTime.pro - 10).toFixed(2));
+          } else if (currentSpeaker === 'con' && dualRemainingTime.con > 0) {
+            dualRemainingTime.con = parseFloat((dualRemainingTime.con - 10).toFixed(2));
+          }
+          
+          updateDualTimerDisplay();
+          updateDualProgressBars();
+          updateToggleSpeakerButton(); // 实时更新切换按钮状态
+          
+          // 检查是否双方时间都用完
+          if (dualRemainingTime.pro <= 0 && dualRemainingTime.con <= 0) {
+            clearInterval(dualTimerInterval);
+            isDualTimerRunning = false;
+          }
+        }, 10);
+      }
+    }
+
+    // 双计时模式：暂停计时
+    function pauseDualTimer() {
+      if (isDualTimerRunning) {
+        clearInterval(dualTimerInterval);
+        isDualTimerRunning = false;
+        elements.dualPauseTimerBtn.classList.add('hidden');
+        elements.dualResumeTimerBtn.classList.remove('hidden');
+      }
+    }
+
+    // 双计时模式：继续计时（10ms间隔）
+    function resumeDualTimer() {
+      if (!isDualTimerRunning && (dualRemainingTime.pro > 0 || dualRemainingTime.con > 0)) {
+        isDualTimerRunning = true;
+        elements.dualResumeTimerBtn.classList.add('hidden');
+        elements.dualPauseTimerBtn.classList.remove('hidden');
+        
+        dualTimerInterval = setInterval(() => {
+          if (currentSpeaker === 'pro' && dualRemainingTime.pro > 0) {
+            dualRemainingTime.pro = parseFloat((dualRemainingTime.pro - 10).toFixed(2));
+          } else if (currentSpeaker === 'con' && dualRemainingTime.con > 0) {
+            dualRemainingTime.con = parseFloat((dualRemainingTime.con - 10).toFixed(2));
+          }
+          
+          updateDualTimerDisplay();
+          updateDualProgressBars();
+          updateToggleSpeakerButton();
+          
+          if (dualRemainingTime.pro <= 0 && dualRemainingTime.con <= 0) {
+            clearInterval(dualTimerInterval);
+            isDualTimerRunning = false;
+          }
+        }, 10);
+      }
+    }
+
+    // 双计时模式：重置计时（恢复为毫秒单位）
+    function resetDualTimer() {
+      clearInterval(dualTimerInterval);
+      isDualTimerRunning = false;
+      
+      const stage = debateStages[currentStageIndex];
+      dualRemainingTime.pro = parseFloat(stage.duration.pro.toFixed(2));
+      dualRemainingTime.con = parseFloat(stage.duration.con.toFixed(2));
+      currentSpeaker = stage.desc.includes('正方先') ? 'pro' : 'pro';
+      
+      updateDualTimerDisplay();
+      updateDualProgressBars();
+      updateToggleSpeakerButton(); // 重置切换按钮状态
+      
+      elements.dualStartTimerBtn.classList.remove('hidden');
+      elements.dualPauseTimerBtn.classList.add('hidden');
+      elements.dualResumeTimerBtn.classList.add('hidden');
+      
+      elements.proTimerPanel.classList.remove('alert-glow');
+      elements.conTimerPanel.classList.remove('alert-glow');
+      elements.proTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+      elements.conTimer.classList.remove('text-secondary', 'text-red-500', 'final-countdown');
+    }
+
+    // 停止所有计时器
+    function stopAllTimers() {
+      // 停止单计时
+      clearInterval(singleTimerInterval);
+      isSingleTimerRunning = false;
+      elements.startTimerBtn.classList.remove('hidden');
+      elements.pauseTimerBtn.classList.add('hidden');
+      elements.resumeTimerBtn.classList.add('hidden');
+      
+      // 停止双计时
+      clearInterval(dualTimerInterval);
+      isDualTimerRunning = false;
+      elements.dualStartTimerBtn.classList.remove('hidden');
+      elements.dualPauseTimerBtn.classList.add('hidden');
+      elements.dualResumeTimerBtn.classList.add('hidden');
+      elements.toggleSpeakerBtn.classList.add('hidden'); // 隐藏切换按钮
+    }
+
+    // 上一环节
+    function goToPrevStage() {
+      if (currentStageIndex > 0) {
+        loadStage(currentStageIndex - 1);
+      }
+    }
+
+    // 下一环节
+    function goToNextStage() {
+      if (currentStageIndex < debateStages.length - 1) {
+        loadStage(currentStageIndex + 1);
+      }
+    }
+
+    // 播放30秒提醒音效
+    function playAlertSound() {
+      elements.alertSound.currentTime = 0;
+      elements.alertSound.play().catch(e => console.log('30秒提醒音效播放失败:', e));
+    }
+
+    // 播放5秒最终提醒音效
+    function playFinalAlertSound() {
+      elements.finalAlertSound.currentTime = 0;
+      elements.finalAlertSound.play().catch(e => console.log('5秒最终提醒音效播放失败:', e));
+    }
+
+    // 播放结束音效（时间用完）
+    function playEndSound() {
+      elements.endSound.currentTime = 0;
+      elements.endSound.play().catch(e => console.log('结束音效播放失败:', e));
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
